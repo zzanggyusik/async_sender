@@ -37,7 +37,7 @@ def model_selector(id_list, config):
 
 async def data_sender(id, model, config):
     for index in range(len(model)):
-        print('Index {} \t model {}'.format(index, model[index]))
+        print('Index {} & model {}'.format(index, model[index]))
         model_data = model[index]
         
         for sl in range((model[index][2])):
@@ -49,39 +49,56 @@ async def data_sender(id, model, config):
             
             if res == []:
                 rest_api.post(config["site_human_db"]["db_name"], config["site_human_db"]["db_collection_name"], (data), config)
-                print(f'{id} {index}/{sl} posted')
+                print(f'{id} {index}:{sl} posted')
                 await asyncio.sleep(1)
             else :
                 rest_api.put(config["site_human_db"]["db_name"], config["site_human_db"]["db_collection_name"], config["site_human_db"]["id_type"], id, data, config)
-                print(f'{id} {index}/{sl} put')
+                print(f'{id} {index}:{sl} put')
                 await asyncio.sleep(1)
 
-    print(f'{id} process finished')   
+def check_task_done(done_task):
+    cnt = 0
+    if done_task == []: return 0
+    else:
+        for i in range(len(done_task)):
+           if done_task[i].done() == True:
+                cnt += 1
+    return cnt
 
 async def main() -> None:
     with open('./instance/config.json') as _file:
         config = json.load(_file)
     
     id_list = id_list_get(config)
+    print(f'Start \n id list = {id_list}')
     
-    i = 0
-    
+    cnt = 0
+    todo_task = len(id_list)
+    done_task = []
     while True:
-        print(i)
-        print('id_list {}'.format(id_list))
+         
+        
         exist_id_list = check_human(id_list, config)
-        print('exist_id_list {}'.format(exist_id_list))
         model_list = model_selector(exist_id_list, config)
+        
+        cnt = check_task_done(done_task)
+            
+        if cnt == 0 : print(f'task progress = {round(cnt/todo_task, 2) * 100}% ({cnt}/{todo_task})')
+        else: 
+            print(f'task progress = {round(cnt/todo_task, 2) * 100}% ({cnt}/{todo_task})')
+            if cnt == todo_task: break
         
         if exist_id_list == []:
             pass
         
         else :
-            asyncio.create_task(data_sender(exist_id_list[0], model_list[0], config))
+            res = asyncio.create_task(data_sender(exist_id_list[0], model_list[0], config))
             id_list.remove(exist_id_list[0])
+            done_task.append(res)
             
-        i += 1
-        await asyncio.sleep(1)
+        time.sleep(1)    
+        await asyncio.sleep(1.01)
+        print('\n')
         
 asyncio.run(main())  
 
